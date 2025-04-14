@@ -1,14 +1,15 @@
 // Load environment variables
 import env from "dotenv";
-import { Bot, InlineKeyboard } from "grammy";
-import axios from "axios";
+import { captureBubblemapsScreenshot } from './screenshot'; 
+import { InputFile } from "grammy";
+import axios from "axios"
 
 env.config()
 
-if(!process.env.TELEGRAM_BOT_TOKEN){
-  throw new Error('TELEGRAM_BOT_TOKEN is not set');
+// Create an instance of the `Bot` class and pass  bot token to it.
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
 }
-// Initialize the bot with the token from environment variables
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 
 // Define supported blockchain networks
@@ -40,45 +41,28 @@ function detectNetwork(address: string) {
   return null; // Unsupported address format
 }
 
-// Helper function to format numbers with commas
-function formatNumber(num: number) {
-  return num.toLocaleString('en-US');
-}
-
-// Function to get network selection keyboard
-function getNetworkSelectionKeyboard(address: string) {
-  const keyboard = new InlineKeyboard();
-  
-  // Store only the first 10 and last 10 characters of the address to stay within Telegram's 64-byte limit
-  const shortAddress = `${address.substring(0, 10)}...${address.substring(address.length - 10)}`;
-  
-  // Add buttons for EVM networks in rows of 2
-  let evmNetworks = Object.values(supportedNetworks).filter(
-    network => network.id !== 'solana'
-  );
-  
-  for (let i = 0; i < evmNetworks.length; i += 2) {
-    const row = [];
-    if (i < evmNetworks.length) {
-      row.push(InlineKeyboard.text(
-        evmNetworks[i].name, 
-        `n:${evmNetworks[i].id}:${shortAddress}`
-      ));
-    }
-    if (i + 1 < evmNetworks.length) {
-      row.push(InlineKeyboard.text(
-        evmNetworks[i + 1].name, 
-        `n:${evmNetworks[i + 1].id}:${shortAddress}`
-      ));
-    }
-    keyboard.row(...row);
+bot.command('bubblemaps', async (ctx) => {
+  const args = ctx.message?.text?.split(' ');
+  if (!args || args.length < 2) {
+    await ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
+    return;
   }
-  
-  return keyboard;
-}
 
-// Function to fetch token information using CoinGecko API
-async function getTokenInfo(contractAddress: string, networkId: string) {
+  const tokenAddress = args[1];
+  const chain = args[2] || 'eth';
+
+  try {
+    await ctx.reply('Generating bubble map screenshot, please wait...');
+    const screenshotBuffer = await captureBubblemapsScreenshot(tokenAddress, chain);
+    await ctx.replyWithPhoto(new InputFile(screenshotBuffer));
+  } catch (error) {
+    console.error('Error capturing screenshot:', error);
+    await ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
+  }
+});
+
+bot.on("message", async (ctx) => {
+  const address = ctx.message.text
   try {
     // Get token data from contract address for the specified network
     const tokenDataResponse = await axios.get(
@@ -289,6 +273,11 @@ bot.catch((err) => {
   console.error('Bot error:', err);
 });
 
-// Start the bot
+
+
+
+// Now that you specified how to handle messages, you can start your bot.
+// This will connect to the Telegram servers and wait for messages.
+
+// Start the bot.
 bot.start();
-console.log('Multi-chain token bot started successfully!'); 

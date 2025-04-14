@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Load environment variables
 const dotenv_1 = __importDefault(require("dotenv"));
+<<<<<<< HEAD
 const grammy_1 = require("grammy");
 const axios_1 = __importDefault(require("axios"));
 dotenv_1.default.config();
@@ -40,6 +41,51 @@ function detectNetwork(address) {
     // First check Solana which has a different address format
     if (supportedNetworks.solana.addressRegex.test(address)) {
         return supportedNetworks.solana;
+=======
+const screenshot_1 = require("./screenshot");
+const grammy_2 = require("grammy");
+const axios_1 = __importDefault(require("axios"));
+dotenv_1.default.config();
+// Create an instance of the `Bot` class and pass your bot token to it.
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+    throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
+}
+const bot = new grammy_1.Bot(process.env.TELEGRAM_BOT_TOKEN);
+// You can now register listeners on your bot object `bot`.
+// grammY will call the listeners when users send messages to your bot.
+// Handle the /start command.
+bot.command("start", (ctx) => ctx.reply("Welcome slime! Up and running."));
+bot.command('bubblemaps', (ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const args = (_b = (_a = ctx.message) === null || _a === void 0 ? void 0 : _a.text) === null || _b === void 0 ? void 0 : _b.split(' ');
+    if (!args || args.length < 2) {
+        yield ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
+        return;
+    }
+    const tokenAddress = args[1];
+    const chain = args[2] || 'eth';
+    try {
+        yield ctx.reply('Generating bubble map screenshot, please wait...');
+        const screenshotBuffer = yield (0, screenshot_1.captureBubblemapsScreenshot)(tokenAddress, chain);
+        yield ctx.replyWithPhoto(new grammy_2.InputFile(screenshotBuffer));
+    }
+    catch (error) {
+        console.error('Error capturing screenshot:', error);
+        yield ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
+    }
+}));
+bot.on("message", (ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    const address = ctx.message.text;
+    try {
+        const { data } = yield axios_1.default.get(`https://api.coingecko.com/api/v3/coins/solana/contract/${address}`);
+        const market_cap = data.market_data.market_cap.usd;
+        const price = data.market_data.current_price.usd;
+        const volume = data.market_data.total_volume.usd;
+        const liquidity = data.market_data.liquidity_score;
+        const holders = data.market_data.holders;
+        const holders_count = data.market_data.holders_count;
+        ctx.reply(`Market Cap: ${market_cap}\nPrice: ${price}\nVolume: ${volume}\nLiquidity: ${liquidity}\nHolders: ${holders}\nHolders Count: ${holders_count}`);
+>>>>>>> 7e818c752e77129a55e890d226de516caba81fcf
     }
     // For EVM compatible chains, we need to ask the user which network it's on
     if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
