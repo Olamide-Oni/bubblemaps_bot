@@ -1,7 +1,13 @@
 import { Bot } from "grammy";
+import env from "dotenv";
+
+env.config();
 
 // Create an instance of the `Bot` class and pass your bot token to it.
-const bot = new Bot("8168313254:AAHGFTMw0aXSj4MbTWtDgSffk_SmZdbr9qg"); // <-- put your bot token between the ""
+if (!process.env.TELEGRAM_TOKEN) {
+  throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
+}
+const bot = new Bot(process.env.TELEGRAM_TOKEN);
 
 // You can now register listeners on your bot object `bot`.
 // grammY will call the listeners when users send messages to your bot.
