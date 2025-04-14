@@ -6,7 +6,7 @@ import axios from "axios"
 
 env.config();
 
-// Create an instance of the `Bot` class and pass your bot token to it.
+// Create an instance of the `Bot` class and pass  bot token to it.
 if (!process.env.TELEGRAM_BOT_TOKEN) {
   throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
 }
