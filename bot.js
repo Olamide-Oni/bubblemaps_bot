@@ -14,17 +14,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const grammy_1 = require("grammy");
 const dotenv_1 = __importDefault(require("dotenv"));
+const screenshot_1 = require("./screenshot");
+const grammy_2 = require("grammy");
 const axios_1 = __importDefault(require("axios"));
 dotenv_1.default.config();
 // Create an instance of the `Bot` class and pass your bot token to it.
-if (!process.env.TELEGRAM_TOKEN) {
+if (!process.env.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
 }
-const bot = new grammy_1.Bot(process.env.TELEGRAM_TOKEN);
+const bot = new grammy_1.Bot(process.env.TELEGRAM_BOT_TOKEN);
 // You can now register listeners on your bot object `bot`.
 // grammY will call the listeners when users send messages to your bot.
 // Handle the /start command.
 bot.command("start", (ctx) => ctx.reply("Welcome slime! Up and running."));
+bot.command('bubblemaps', (ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const args = (_b = (_a = ctx.message) === null || _a === void 0 ? void 0 : _a.text) === null || _b === void 0 ? void 0 : _b.split(' ');
+    if (!args || args.length < 2) {
+        yield ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
+        return;
+    }
+    const tokenAddress = args[1];
+    const chain = args[2] || 'eth';
+    try {
+        yield ctx.reply('Generating bubble map screenshot, please wait...');
+        const screenshotBuffer = yield (0, screenshot_1.captureBubblemapsScreenshot)(tokenAddress, chain);
+        yield ctx.replyWithPhoto(new grammy_2.InputFile(screenshotBuffer));
+    }
+    catch (error) {
+        console.error('Error capturing screenshot:', error);
+        yield ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
+    }
+}));
 bot.on("message", (ctx) => __awaiter(void 0, void 0, void 0, function* () {
     const address = ctx.message.text;
     try {
