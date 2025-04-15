@@ -13,7 +13,7 @@ export async function captureBubblemapsScreenshot(tokenAddress: string, chain: s
 
 import puppeteer from 'puppeteer';
 
-export async function captureBubblemapsScreenshot(tokenAddress: string, chain: string = 'eth'): Promise<Buffer> {
+export async function captureBubblemapsScreenshot(tokenAddress: string, chain: string): Promise<Buffer> {
   const url = `https://app.bubblemaps.io/${chain}/token/${tokenAddress}`;
   const browser = await puppeteer.launch();
   const page = await browser.newPage();

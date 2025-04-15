@@ -26,8 +26,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.captureBubblemapsScreenshot = captureBubblemapsScreenshot;
 const puppeteer_1 = __importDefault(require("puppeteer"));
-function captureBubblemapsScreenshot(tokenAddress_1) {
-    return __awaiter(this, arguments, void 0, function* (tokenAddress, chain = 'eth') {
+function captureBubblemapsScreenshot(tokenAddress, chain) {
+    return __awaiter(this, void 0, void 0, function* () {
         const url = `https://app.bubblemaps.io/${chain}/token/${tokenAddress}`;
         const browser = yield puppeteer_1.default.launch();
         const page = yield browser.newPage();

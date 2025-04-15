@@ -1,99 +1,21 @@
-// Load environment variables
+import { Bot, InputFile, InlineKeyboard } from "grammy";
 import env from "dotenv";
-import { captureBubblemapsScreenshot } from './screenshot'; 
-import { InputFile } from "grammy";
-import axios from "axios"
+import { captureBubblemapsScreenshot } from './src/screenshot';
+import { supportedNetworks, detectNetwork, getTokenInfo, formatNumber, getNetworkSelectionKeyboard, getTokenDataAndSCreenshot } from './src/controller';
 
-env.config()
 
-// Create an instance of the `Bot` class and pass  bot token to it.
+env.config();
+
 if (!process.env.TELEGRAM_BOT_TOKEN) {
   throw new Error("TELEGRAM_TOKEN is not defined in environment variables");
 }
+
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
-
-// Define supported blockchain networks
-const supportedNetworks = {
-  ethereum: { name: 'Ethereum', id: 'ethereum', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  bsc: { name: 'Binance Smart Chain', id: 'binance-smart-chain', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  ftm: { name: 'Fantom', id: 'fantom', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  avax: { name: 'Avalanche', id: 'avalanche', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  cro: { name: 'Cronos', id: 'cronos', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  arbitrum: { name: 'Arbitrum', id: 'arbitrum-one', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  polygon: { name: 'Polygon', id: 'polygon-pos', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  base: { name: 'Base', id: 'base', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  solana: { name: 'Solana', id: 'solana', addressRegex: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/ },
-  sonic: { name: 'Sonic', id: 'sonic', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-};
-
-// Helper function to detect the network from an address
-function detectNetwork(address: string) {
-  // First check Solana which has a different address format
-  if (supportedNetworks.solana.addressRegex.test(address)) {
-    return supportedNetworks.solana;
-  }
-  
-  // For EVM compatible chains, we need to ask the user which network it's on
-  if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    return null; // Will handle this with a network selection menu
-  }
-  
-  return null; // Unsupported address format
-}
-
-bot.command('bubblemaps', async (ctx) => {
-  const args = ctx.message?.text?.split(' ');
-  if (!args || args.length < 2) {
-    await ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
-    return;
-  }
-
-  const tokenAddress = args[1];
-  const chain = args[2] || 'eth';
-
-  try {
-    await ctx.reply('Generating bubble map screenshot, please wait...');
-    const screenshotBuffer = await captureBubblemapsScreenshot(tokenAddress, chain);
-    await ctx.replyWithPhoto(new InputFile(screenshotBuffer));
-  } catch (error) {
-    console.error('Error capturing screenshot:', error);
-    await ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
-  }
-});
-
-bot.on("message", async (ctx) => {
-  const address = ctx.message.text
-  try {
-    // Get token data from contract address for the specified network
-    const tokenDataResponse = await axios.get(
-      `${process.env.COINGECKO_API_URL}/coins/${networkId}/contract/${contractAddress}`
-    );
-
-    const tokenData = tokenDataResponse.data;
-    
-    // Extract relevant information
-    const tokenInfo = {
-      name: tokenData.name,
-      symbol: tokenData.symbol,
-      price: tokenData.market_data.current_price.usd,
-      marketCap: tokenData.market_data.market_cap.usd,
-      priceChangePercentage24h: tokenData.market_data.price_change_percentage_24h || 0,
-      image: tokenData.image.small,
-      networkId: networkId,
-      networkName: Object.values(supportedNetworks).find(n => n.id === networkId)?.name || networkId
-    };
-    
-    return tokenInfo;
-  } catch (error) {
-    console.error('Error fetching token information:', error instanceof Error ? error.message : String(error));
-    throw new Error('Failed to fetch token information. The contract address might be invalid or the token is not listed on CoinGecko for this network.');
-  }
-}
-
 // Store addresses temporarily during selection process
 const addressCache: Record<string, string> = {};
 
-// Handle the /start command
+
+
 bot.command('start', async (ctx) => {
   await ctx.reply(
     'Welcome to the Multi-Chain Token Info Bot! 🚀\n\n' +
@@ -104,7 +26,6 @@ bot.command('start', async (ctx) => {
   );
 });
 
-// Handle the /help command
 bot.command('help', async (ctx) => {
   await ctx.reply(
     'How to use this bot:\n\n' +
@@ -118,6 +39,7 @@ bot.command('help', async (ctx) => {
   );
 });
 
+
 // Handle callback queries (for network selection)
 bot.on('callback_query:data', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
@@ -129,9 +51,15 @@ bot.on('callback_query:data', async (ctx) => {
       await ctx.answerCallbackQuery('Invalid selection. Please try again.');
       return;
     }
+    const [n, networkId, shortAddress] = parts;
+    // Find the network entry where the id matches networkId
+    const network = Object.values(supportedNetworks).find(n => n.id === networkId);
+    if (!network) {
+      await ctx.answerCallbackQuery('Invalid network selected. Please try again.');
+      return;
+    }
+    const bubblemapsId = network.bubblemapsId;
     
-    const networkId = parts[1];
-    const shortAddress = parts[2];
     
     // Get the user's chat ID for retrieving the full address
     const chatId = ctx.callbackQuery.from.id.toString();
@@ -159,7 +87,7 @@ bot.on('callback_query:data', async (ctx) => {
     
     try {
       // Fetch token information for the selected network
-      const tokenInfo = await getTokenInfo(address, networkId);
+      const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(address, networkId, bubblemapsId);
       
       // Create a message with the token information
       const message = `
@@ -175,14 +103,14 @@ Data provided by CoinGecko
       
       // Create an inline keyboard with a link to view on CoinGecko
       const keyboard = new InlineKeyboard()
-        .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${networkId}/contract/${address}`);
+        .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
       
       // Send the message with the inline keyboard
+      await ctx.replyWithPhoto(new InputFile(screenshot));
       await ctx.reply(message, {
         parse_mode: 'Markdown',
         reply_markup: keyboard
       });
-      
       // Clean up the cache
       delete addressCache[cacheKey];
     } catch (error) {
@@ -191,6 +119,25 @@ Data provided by CoinGecko
     
     // Answer the callback query
     await ctx.answerCallbackQuery();
+  }
+});
+
+bot.command('bubblemaps', async (ctx) => {
+  const args = ctx.message?.text?.split(' ');
+  if (!args || args.length < 2) {
+    await ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
+    return;
+  }
+  const tokenAddress = args[1];
+  const chain = args[2] || 'eth';
+
+  try {
+    await ctx.reply('Generating bubble map screenshot, please wait...');
+    const screenshotBuffer = await captureBubblemapsScreenshot(tokenAddress, chain);
+    await ctx.replyWithPhoto(new InputFile(screenshotBuffer));
+  } catch (error) {
+    console.error('Error capturing screenshot:', error);
+    await ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
   }
 });
 
@@ -208,8 +155,7 @@ bot.on('message:text', async (ctx) => {
     
     try {
       // Fetch token information for Solana
-      const tokenInfo = await getTokenInfo(text, network.id);
-      
+      const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(text, network.id, 'sol');
       // Create a message with the token information
       const message = `
 🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
@@ -224,9 +170,9 @@ Data provided by CoinGecko
       
       // Create an inline keyboard with a link to view on CoinGecko
       const keyboard = new InlineKeyboard()
-        .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${network.id}/contract/${text}`);
-      
+        .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
       // Send the message with the inline keyboard
+      await ctx.replyWithPhoto(new InputFile(screenshot));
       await ctx.reply(message, {
         parse_mode: 'Markdown',
         reply_markup: keyboard
@@ -268,16 +214,9 @@ Data provided by CoinGecko
   );
 });
 
-// Add global error handler
 bot.catch((err) => {
   console.error('Bot error:', err);
 });
 
-
-
-
-// Now that you specified how to handle messages, you can start your bot.
-// This will connect to the Telegram servers and wait for messages.
-
-// Start the bot.
 bot.start();
+console.log('Multi-chain token bot started successfully!'); 
