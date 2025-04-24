@@ -17,12 +17,47 @@ const addressCache: Record<string, string> = {};
 
 
 bot.command('start', async (ctx) => {
+  // Get the user's name if available
+  const userName = ctx.from?.first_name || 'there';
+  
+  // Create a welcome keyboard with helpful commands
+  const welcomeKeyboard = new InlineKeyboard()
+    .text('💰 Token Examples', 'guide:examples')
+    .text('🔍 Commands', 'guide:commands')
+    .row()
+    .text('📊 Popular Tokens', 'guide:popular')
+    .text('❓ Help', 'guide:help');
+  
+  // Send the welcome message with the keyboard
   await ctx.reply(
-    'Welcome to the Multi-Chain Token Info Bot! 🚀\n\n' +
-    'Send me a token contract address from any of these networks, and I will fetch information about it:\n' +
-    '• Ethereum\n• Binance Smart Chain\n• Fantom\n• Avalanche\n• Cronos\n• Arbitrum\n• Polygon\n• Base\n• Solana\n• Sonic\n\n' +
-    'Example (Ethereum): 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984 (UNI token)\n' +
-    'Example (Solana): EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v (USDC token)'
+    `*Welcome, ${userName}!* 🚀\n\n` +
+    `I'm your Multi-Chain Token Info Bot, designed to provide real-time data and visualizations for crypto tokens across multiple blockchains.\n\n` +
+    
+    `*✨ What I can do:*\n` +
+    `• Get token prices, market caps & 24h changes\n` +
+    `• Generate token holder visualizations\n` +
+    `• Support 10 different blockchains\n` +
+    `• Provide CoinGecko data integration\n\n` +
+    
+    `*🔎 How to use me:*\n` +
+    `1️⃣ Simply paste any token contract address directly in chat\n` +
+    `2️⃣ For EVM chains (0x...), select the network when prompted\n` +
+    `3️⃣ I'll automatically fetch data and generate visualizations\n\n` +
+    
+    `*No commands needed!* Just copy & paste any token address.\n\n` +
+    
+    `*Additional commands:*\n` +
+    `/start - Show this guide\n` +
+    `/help - Detailed usage instructions\n\n` +
+    
+    `*Supported networks:*\n` +
+    `ETH • BSC • FTM • AVAX • CRO • ARB • POLY • BASE • SOL • SONIC\n\n` +
+    
+    `Select an option below to learn more:`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: welcomeKeyboard
+    }
   );
 });
 
@@ -44,22 +79,169 @@ bot.command('help', async (ctx) => {
 bot.on('callback_query:data', async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   
-  // Parse callback data (format: n:networkId:shortAddress)
+  // Guide menu handler
+  if (callbackData.startsWith('guide:')) {
+    const guideType = callbackData.split(':')[1];
+    
+    if (guideType === 'examples') {
+      await ctx.editMessageText(
+        '*📝 Token Address Examples:*\n\n' +
+        
+        '*Just copy & paste any of these addresses directly:*\n\n' +
+        
+        '*Ethereum (ETH):*\n' +
+        '• UNI: `0x1f9840a85d5af5bf1d1762f925bdaddc4201f984`\n' +
+        '• SHIB: `0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce`\n\n' +
+        
+        '*Binance Smart Chain (BSC):*\n' +
+        '• CAKE: `0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82`\n' +
+        '• FLOKI: `0xfb5b838b6cfeedc2873ab27866079ac55363d37e`\n\n' +
+        
+        '*Solana (SOL):*\n' +
+        '• USDC: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`\n' +
+        '• BONK: `DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263`\n\n' +
+        
+        '*No commands needed - just paste the address!*',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard().text('« Back to Main Menu', 'guide:back')
+        }
+      );
+    } 
+    else if (guideType === 'commands') {
+      await ctx.editMessageText(
+        '*🔍 Available Commands:*\n\n' +
+        
+        '`/start` - Show welcome guide\n' +
+        '`/help` - Display usage instructions\n\n' +
+        
+        '*⭐ Main Usage - No Commands Needed:*\n' +
+        '• *Simply paste any token address directly in chat*\n' +
+        '• The bot will automatically detect and process it\n' +
+        '• For EVM addresses (0x...), you\'ll get a network selection menu\n' +
+        '• Solana addresses are auto-detected\n\n' +
+        
+        '*Each result includes:*\n' +
+        '• Current price and market cap\n' +
+        '• 24-hour price change\n' +
+        '• Token holder visualization\n' +
+        '• Link to view more details',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard().text('« Back to Main Menu', 'guide:back')
+        }
+      );
+    }
+    else if (guideType === 'popular') {
+      await ctx.editMessageText(
+        '*📊 Popular Tokens by Network:*\n\n' +
+        
+        '*Ethereum Top Tokens:*\n' +
+        '• ETH - Ethereum\n' +
+        '• USDT - Tether\n' +
+        '• USDC - USD Coin\n' +
+        '• BNB - Binance Coin\n' +
+        '• SHIB - Shiba Inu\n\n' +
+        
+        '*BSC Top Tokens:*\n' +
+        '• CAKE - PancakeSwap\n' +
+        '• FLOKI - Floki\n' +
+        '• BABYDOGE - Baby Doge Coin\n\n' +
+        
+        '*Solana Top Tokens:*\n' +
+        '• BONK - Bonk\n' +
+        '• JTO - Jito\n' +
+        '• RENDER - Render Token\n\n' +
+        
+        'Want to check any of these? Just ask!',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard().text('« Back to Main Menu', 'guide:back')
+        }
+      );
+    }
+    else if (guideType === 'help') {
+      await ctx.editMessageText(
+        '*❓ Help & Troubleshooting:*\n\n' +
+        
+        '*Common Issues:*\n' +
+        '• *Token not found* - The token might not be listed on CoinGecko\n' +
+        '• *Timeout errors* - Try again, network might be congested\n' +
+        '• *No visualization* - Some tokens may not have Bubblemaps data\n\n' +
+        
+        '*Usage Tips:*\n' +
+        '• Simply paste any token address directly in chat\n' +
+        '• Make sure to use the correct contract address\n' +
+        '• Patience please! Visualizations can take a moment to generate\n\n' +
+        
+        '*Data Sources:*\n' +
+        '• Token data: CoinGecko API\n' +
+        '• Visualizations: Bubblemaps\n\n' +
+        
+        'Need more help? Contact @Amin99199',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard().text('« Back to Main Menu', 'guide:back')
+        }
+      );
+    }
+    else if (guideType === 'back') {
+      // Return to main menu
+      const userName = ctx.from?.first_name || 'there';
+      const welcomeKeyboard = new InlineKeyboard()
+        .text('💰 Token Examples', 'guide:examples')
+        .text('🔍 Commands', 'guide:commands')
+        .row()
+        .text('📊 Popular Tokens', 'guide:popular')
+        .text('❓ Help', 'guide:help');
+      
+      await ctx.editMessageText(
+        `*Welcome, ${userName}!* 🚀\n\n` +
+        `I'm your Multi-Chain Token Info Bot, designed to provide real-time data and visualizations for crypto tokens across multiple blockchains.\n\n` +
+        
+        `*✨ What I can do:*\n` +
+        `• Get token prices, market caps & 24h changes\n` +
+        `• Generate token holder visualizations\n` +
+        `• Support 10 different blockchains\n` +
+        `• Provide CoinGecko data integration\n\n` +
+        
+        `*🔎 How to use me:*\n` +
+        `1️⃣ Simply paste any token contract address directly in chat\n` +
+        `2️⃣ For EVM chains (0x...), select the network when prompted\n` +
+        `3️⃣ I'll automatically fetch data and generate visualizations\n\n` +
+        
+        `*No commands needed!* Just copy & paste any token address.\n\n` +
+        
+        `*Additional commands:*\n` +
+        `/start - Show this guide\n` +
+        `/help - Detailed usage instructions\n\n` +
+        
+        `*Supported networks:*\n` +
+        `ETH • BSC • FTM • AVAX • CRO • ARB • POLY • BASE • SOL • SONIC\n\n` +
+        
+        `Select an option below to learn more:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: welcomeKeyboard
+        }
+      );
+    }
+    
+    // Answer the callback query
+    await ctx.answerCallbackQuery();
+    return;
+  }
+  
+  // Handle existing network selection callback (n:networkId:shortAddress)
   if (callbackData.startsWith('n:')) {
     const parts = callbackData.split(':');
     if (parts.length !== 3) {
       await ctx.answerCallbackQuery('Invalid selection. Please try again.');
       return;
     }
-    const [n, networkId, shortAddress] = parts;
-    // Find the network entry where the id matches networkId
-    const network = Object.values(supportedNetworks).find(n => n.id === networkId);
-    if (!network) {
-      await ctx.answerCallbackQuery('Invalid network selected. Please try again.');
-      return;
-    }
-    const bubblemapsId = network.bubblemapsId;
     
+    const networkId = parts[1];
+    const shortAddress = parts[2];
     
     // Get the user's chat ID for retrieving the full address
     const chatId = ctx.callbackQuery.from.id.toString();
@@ -85,12 +267,49 @@ bot.on('callback_query:data', async (ctx) => {
     // Show typing indicator
     await ctx.replyWithChatAction('typing');
     
+    // Send status message
+    const statusMessage = await ctx.reply('🔍 Fetching token data and generating visualization...');
+    
     try {
-      // Fetch token information for the selected network
+      // Get bubblemaps chain ID
+      const networkKey = getNetworkKeyById(networkId);
+      if (!networkKey) {
+        throw new Error(`Unknown network ID: ${networkId}`);
+      }
+      const bubblemapsId = supportedNetworks[networkKey].bubblemapsId;
+      
+      // Fetch token information and screenshot for the selected network
       const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(address, networkId, bubblemapsId);
       
-      // Create a message with the token information
-      const message = `
+      // Delete status message
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, statusMessage.message_id);
+      } catch (error) {
+        console.log('Could not delete status message', error);
+      }
+      
+      // If we have a screenshot but no token info, show just the visualization
+      if (screenshot && !tokenInfo) {
+        // Create an inline keyboard with a link to view on Bubblemaps
+        const keyboard = new InlineKeyboard()
+          .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
+        
+        // Send the visualization with a simplified message
+        await ctx.replyWithPhoto(new InputFile(screenshot));
+        await ctx.reply(
+          `*Token Visualization*\n\n` +
+          `🔗 *Network:* ${supportedNetworks[networkKey].name}\n\n` +
+          `ℹ️ Token data not available on CoinGecko, but visualization was generated successfully.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          }
+        );
+      }
+      // If we have both token info and screenshot
+      else if (tokenInfo && screenshot) {
+        // Create a message with the token information
+        const message = `
 🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
 🔗 *Network:* ${tokenInfo.networkName}
 
@@ -99,45 +318,61 @@ bot.on('callback_query:data', async (ctx) => {
 📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
 
 Data provided by CoinGecko
-      `;
+        `;
+        
+        // Create an inline keyboard with a link to view on Bubblemaps
+        const keyboard = new InlineKeyboard()
+          .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
+        
+        // Send the message with the inline keyboard
+        await ctx.replyWithPhoto(new InputFile(screenshot));
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
+      // If we only have token info but no screenshot
+      else if (tokenInfo && !screenshot) {
+        // Create a message with the token information
+        const message = `
+🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
+🔗 *Network:* ${tokenInfo.networkName}
+
+💰 *Price:* $${tokenInfo.price.toFixed(6)}
+📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
+📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
+
+⚠️ Visualization could not be generated for this token.
+
+Data provided by CoinGecko
+        `;
+        
+        // Create an inline keyboard with a link to view on CoinGecko
+        const keyboard = new InlineKeyboard()
+          .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${networkId}/contract/${address}`);
+        
+        // Send the message with the inline keyboard
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
       
-      // Create an inline keyboard with a link to view on CoinGecko
-      const keyboard = new InlineKeyboard()
-        .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
-      
-      // Send the message with the inline keyboard
-      await ctx.replyWithPhoto(new InputFile(screenshot));
-      await ctx.reply(message, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
       // Clean up the cache
       delete addressCache[cacheKey];
     } catch (error) {
+      // Delete status message even on error
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, statusMessage.message_id);
+      } catch (err) {
+        console.log('Could not delete status message', err);
+      }
+      
       await ctx.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
     }
     
     // Answer the callback query
     await ctx.answerCallbackQuery();
-  }
-});
-
-bot.command('bubblemaps', async (ctx) => {
-  const args = ctx.message?.text?.split(' ');
-  if (!args || args.length < 2) {
-    await ctx.reply('Please provide a token address. Usage: /bubblemaps <token_address> [chain]');
-    return;
-  }
-  const tokenAddress = args[1];
-  const chain = args[2] || 'eth';
-
-  try {
-    await ctx.reply('Generating bubble map screenshot, please wait...');
-    const screenshotBuffer = await captureBubblemapsScreenshot(tokenAddress, chain);
-    await ctx.replyWithPhoto(new InputFile(screenshotBuffer));
-  } catch (error) {
-    console.error('Error capturing screenshot:', error);
-    await ctx.reply('Failed to capture the bubble map screenshot. Please try again later.');
   }
 });
 
@@ -153,11 +388,42 @@ bot.on('message:text', async (ctx) => {
     // Send a "typing" action to show the bot is processing
     await ctx.replyWithChatAction('typing');
     
+    // Send status message
+    const statusMessage = await ctx.reply('🔍 Fetching token data and generating visualization...');
+    
     try {
       // Fetch token information for Solana
       const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(text, network.id, 'sol');
-      // Create a message with the token information
-      const message = `
+      
+      // Delete status message
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, statusMessage.message_id);
+      } catch (error) {
+        console.log('Could not delete status message', error);
+      }
+      
+      // If we have a screenshot but no token info, show just the visualization
+      if (screenshot && !tokenInfo) {
+        // Create an inline keyboard with a link to view on Bubblemaps
+        const keyboard = new InlineKeyboard()
+          .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
+        
+        // Send the visualization with a simplified message
+        await ctx.replyWithPhoto(new InputFile(screenshot));
+        await ctx.reply(
+          `*Token Visualization*\n\n` +
+          `🔗 *Network:* ${network.name}\n\n` +
+          `ℹ️ Token data not available on CoinGecko, but visualization was generated successfully.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          }
+        );
+      }
+      // If we have both token info and screenshot
+      else if (tokenInfo && screenshot) {
+        // Create a message with the token information
+        const message = `
 🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
 🔗 *Network:* ${tokenInfo.networkName}
 
@@ -166,18 +432,53 @@ bot.on('message:text', async (ctx) => {
 📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
 
 Data provided by CoinGecko
-      `;
-      
-      // Create an inline keyboard with a link to view on CoinGecko
-      const keyboard = new InlineKeyboard()
-        .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
-      // Send the message with the inline keyboard
-      await ctx.replyWithPhoto(new InputFile(screenshot));
-      await ctx.reply(message, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
+        `;
+        
+        // Create an inline keyboard with a link to view on Bubblemaps
+        const keyboard = new InlineKeyboard()
+          .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
+        
+        // Send the message with the inline keyboard
+        await ctx.replyWithPhoto(new InputFile(screenshot));
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
+      // If we only have token info but no screenshot
+      else if (tokenInfo && !screenshot) {
+        // Create a message with the token information
+        const message = `
+🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
+🔗 *Network:* ${tokenInfo.networkName}
+
+💰 *Price:* $${tokenInfo.price.toFixed(6)}
+📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
+📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
+
+⚠️ Visualization could not be generated for this token.
+
+Data provided by CoinGecko
+        `;
+        
+        // Create an inline keyboard with a link to view on CoinGecko
+        const keyboard = new InlineKeyboard()
+          .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${network.id}/contract/${text}`);
+        
+        // Send the message with the inline keyboard
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
     } catch (error) {
+      // Delete status message even on error
+      try {
+        await ctx.api.deleteMessage(ctx.chat!.id, statusMessage.message_id);
+      } catch (err) {
+        console.log('Could not delete status message', err);
+      }
+      
       await ctx.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
     }
     return;
@@ -213,6 +514,25 @@ Data provided by CoinGecko
     'Type /help for more information.'
   );
 });
+
+// Add a helper function to convert network IDs to keys
+function getNetworkKeyById(networkId: string): keyof typeof supportedNetworks | undefined {
+  // First check if it's a direct key match (like 'ethereum')
+  if (networkId in supportedNetworks) {
+    return networkId as keyof typeof supportedNetworks;
+  }
+  
+  // Otherwise search for the network by its ID property
+  for (const [key, network] of Object.entries(supportedNetworks)) {
+    if (network.id === networkId) {
+      return key as keyof typeof supportedNetworks;
+    }
+  }
+  
+  // Not found
+  console.error(`No network found with ID: ${networkId}`);
+  return undefined;
+}
 
 bot.catch((err) => {
   console.error('Bot error:', err);
