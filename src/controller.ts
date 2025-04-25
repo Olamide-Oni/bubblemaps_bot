@@ -36,12 +36,33 @@ function detectNetwork(address: string) {
 }
 
 async function getTokenDataAndSCreenshot(address: string, network: string, bubblemapsId: string) {
-  const [tokenInfo, screenshot] = await Promise.all([
-    getTokenInfo(address, network),
-    captureBubblemapsScreenshot(address, bubblemapsId)
-  ])
-  return { tokenInfo, screenshot }
+  try {
+    // Try to get both token info and screenshot in parallel
+    const [tokenInfo, screenshot] = await Promise.all([
+      getTokenInfo(address, network).catch(error => {
+        console.log('Token info fetch failed:', error);
+        // Return null instead of throwing to continue with screenshot
+        return null;
+      }),
+      captureBubblemapsScreenshot(address, bubblemapsId).catch(error => {
+        console.log('Screenshot capture failed:', error);
+        // Return null instead of throwing
+        return null;
+      })
+    ]);
+    
+    // If both failed, throw an error
+    if (!tokenInfo && !screenshot) {
+      throw new Error('Could not fetch token data or generate visualization');
+    }
+    
+    return { tokenInfo, screenshot };
+  } catch (error) {
+    console.error('Error in getTokenDataAndSCreenshot:', error);
+    throw error;
+  }
 }
+
 // Helper function to format numbers with commas
 function formatNumber(num: number) {
   return num.toLocaleString('en-US');
@@ -75,7 +96,6 @@ function getNetworkSelectionKeyboard(address: string) {
     }
     keyboard.row(...row);
   }
-  
   return keyboard;
 }
 

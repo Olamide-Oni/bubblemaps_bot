@@ -9,5 +9,8 @@
     "grammy": "^1.35.1",
     "playwright": "^1.51.1",
     "puppeteer": "^24.6.1"
+  },
+  "scripts": {
+    "dev": "nodemon bot.ts"
   }
 }
