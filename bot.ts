@@ -84,10 +84,24 @@ bot.on('callback_query:data', async (ctx) => {
     const guideType = callbackData.split(':')[1];
     
     if (guideType === 'examples') {
+      // Create keyboard with copyable addresses
+      const addressKeyboard = new InlineKeyboard()
+        .text('Copy UNI', 'copy:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984')
+        .text('Copy SHIB', 'copy:0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce')
+        .row()
+        .text('Copy CAKE', 'copy:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82')
+        .text('Copy FLOKI', 'copy:0xfb5b838b6cfeedc2873ab27866079ac55363d37e')
+        .row()
+        .text('Copy USDC (SOL)', 'copy:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+        .row()
+        .text('Copy BONK (SOL)', 'copy:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263')
+        .row()
+        .text('« Back to Main Menu', 'guide:back');
+      
       await ctx.editMessageText(
         '*📝 Token Address Examples:*\n\n' +
         
-        '*Just copy & paste any of these addresses directly:*\n\n' +
+        '*Simply click a button below to copy an address to clipboard, or tap on an address to use it:*\n\n' +
         
         '*Ethereum (ETH):*\n' +
         '• UNI: `0x1f9840a85d5af5bf1d1762f925bdaddc4201f984`\n' +
@@ -104,7 +118,7 @@ bot.on('callback_query:data', async (ctx) => {
         '*No commands needed - just paste the address!*',
         {
           parse_mode: 'Markdown',
-          reply_markup: new InlineKeyboard().text('« Back to Main Menu', 'guide:back')
+          reply_markup: addressKeyboard
         }
       );
     } 
@@ -373,6 +387,22 @@ Data provided by CoinGecko
     
     // Answer the callback query
     await ctx.answerCallbackQuery();
+  }
+
+  // Handle copy button click to send the contract address
+  if (callbackData.startsWith('copy:')) {
+    const address = callbackData.substring(5); // Remove 'copy:' prefix
+    
+    // Answer the callback query
+    await ctx.answerCallbackQuery('Address copied! Paste it in a new message.');
+    
+    // Send the address in a new message that the user can easily copy
+    await ctx.reply(
+      `\`${address}\`\n\nYou can copy this address and send it back to analyze this token.`,
+      { parse_mode: 'Markdown' }
+    );
+    
+    return;
   }
 });
 
