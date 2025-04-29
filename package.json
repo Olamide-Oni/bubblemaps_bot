@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@types/node": "^22.14.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
   "dependencies": {
@@ -11,6 +12,7 @@
     "puppeteer": "^24.6.1"
   },
   "scripts": {
-    "dev": "nodemon bot.ts"
+    "dev": "nodemon bot.ts",
+    "start": "ts-node bot.ts"
   }
 }
