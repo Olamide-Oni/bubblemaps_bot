@@ -292,10 +292,11 @@ bot.on('callback_query:data', async (ctx) => {
       if (!networkKey) {
         throw new Error(`Unknown network ID: ${networkId}`);
       }
-      const bubblemapsId = supportedNetworks[networkKey].bubblemapsId;
+      const networkDetails = supportedNetworks[networkKey]; // Get full network details
+      const bubblemapsId = networkDetails.bubblemapsId;
       
-      // Fetch token information and screenshot for the selected network
-      const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(address, networkId, bubblemapsId);
+      // Fetch token information, Bubblemaps score, and screenshot for the selected network
+      const { tokenInfo, bubblemapsInfo, screenshot } = await getTokenDataAndSCreenshot(address, networkId, bubblemapsId);
       
       // Delete status message
       try {
@@ -304,82 +305,69 @@ bot.on('callback_query:data', async (ctx) => {
         console.log('Could not delete status message', error);
       }
       
-      // If we have a screenshot but no token info, show just the visualization
-      if (screenshot && !tokenInfo) {
-        // Create an inline keyboard with a link to view on Bubblemaps
-        const keyboard = new InlineKeyboard()
-          .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
-        
-        // Send the visualization with a simplified message
-        await ctx.replyWithPhoto(new InputFile(screenshot));
-        await ctx.reply(
-          `*Token Visualization*\n\n` +
-          `🔗 *Network:* ${supportedNetworks[networkKey].name}\n\n` +
-          `ℹ️ Token data not available on CoinGecko, but visualization was generated successfully.`,
-          {
-            parse_mode: 'Markdown',
-            reply_markup: keyboard
-          }
-        );
+      // --- Start Building Response ---
+      let message = '';
+      let keyboard = new InlineKeyboard();
+      const networkName = tokenInfo?.networkName || networkDetails.name;
+      
+      // Add Token Header (if available)
+      if (tokenInfo) {
+        message += `🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*\n`;
+      } else {
+        // Use address if name is missing
+        message += `🪙 *Token:* \`${address.substring(0, 6)}...${address.substring(address.length - 4)}\`\n`;
       }
-      // If we have both token info and screenshot
-      else if (tokenInfo && screenshot) {
-        // Create a message with the token information
-        const message = `
-🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
-🔗 *Network:* ${tokenInfo.networkName}
+      message += `🔗 *Network:* ${networkName}\n\n`;
+      
+      // Add CoinGecko Data (if available)
+      if (tokenInfo) {
+        message += `*CoinGecko Data:*\n💰 *Price:* $${tokenInfo.price.toFixed(6)}\n📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}\n📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%\n\n`;
+        keyboard = keyboard.url('View on CoinGecko', `https://www.coingecko.com/en/coins/${networkId}/contract/${address}`);
+      } else {
+        message += `*CoinGecko Data:* Not available for this token.\n\n`;
+      }
+      
+      // Add Bubblemaps Supply Analysis (if available)
+      if (bubblemapsInfo) {
+        message += `*Supply Analysis (Bubblemaps):*\n💯 *Decentralization Score:* ${bubblemapsInfo.decentralizationScore !== undefined && bubblemapsInfo.decentralizationScore !== null ? bubblemapsInfo.decentralizationScore.toFixed(2) : 'N/A'}\n📦 *In CEXs:* ${bubblemapsInfo.percentInCexs !== undefined ? bubblemapsInfo.percentInCexs.toFixed(2) + '%' : 'N/A'}\n📜 *In Contracts:* ${bubblemapsInfo.percentInContracts !== undefined ? bubblemapsInfo.percentInContracts.toFixed(2) + '%' : 'N/A'}\n\n`;
+        // Add Bubblemaps link if we have this data or the screenshot
+        keyboard = keyboard.url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
+      } else {
+        message += `*Supply Analysis (Bubblemaps):* Not available for this token.\n\n`;
+      }
+      
+      // Add Screenshot note (if missing but other data exists)
+      if (!screenshot && (tokenInfo || bubblemapsInfo)) {
+        message += `\n⚠️ Visualization could not be generated.`;
+      }
+      // Add general data note (if screenshot exists but nothing else)
+      else if (screenshot && !tokenInfo && !bubblemapsInfo) {
+         message = `*Token Visualization*\n🔗 *Network:* ${networkName}\n\nℹ️ Token data not available from CoinGecko or Bubblemaps metadata, but visualization was generated successfully.`
+         keyboard = keyboard.url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
+      }
 
-💰 *Price:* $${tokenInfo.price.toFixed(6)}
-📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
-📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
-
-*Supply Analysis*
-
-*Decentralization Score:* ${tokenInfo.decentralizationScore}
-
-*identified supply*
-
-${tokenInfo.percentInCexs} in CEX
-${tokenInfo.percentInContracts} in Contracts
-
-        `;
-        
-        // Create an inline keyboard with a link to view on Bubblemaps
-        const keyboard = new InlineKeyboard()
-          .url('View on Bubblemaps', `https://app.bubblemaps.io/${bubblemapsId}/token/${address}`);
-        
-        // Send the message with the inline keyboard
-        await ctx.replyWithPhoto(new InputFile(screenshot));
-        await ctx.reply(message, {
+      // Add "Powered by Bubblemaps" if Bubblemaps data or screenshot is present
+      if (bubblemapsInfo || screenshot) {
+          message += `\n\nPowered by [Bubblemaps](https://bubblemaps.io/) 📊`;
+      }
+      
+      // --- Send Response ---
+      if (screenshot) {
+        // Send photo first, then the text message with keyboard
+        await ctx.replyWithPhoto(new InputFile(screenshot), {
+          caption: message.trim(), // Use caption for photo
           parse_mode: 'Markdown',
           reply_markup: keyboard
         });
-      }
-      // If we only have token info but no screenshot
-      else if (tokenInfo && !screenshot) {
-        // Create a message with the token information
-        const message = `
-🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
-🔗 *Network:* ${tokenInfo.networkName}
-
-💰 *Price:* $${tokenInfo.price.toFixed(6)}
-📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
-📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
-
-⚠️ Visualization could not be generated for this token.
-
-Data provided by CoinGecko
-        `;
-        
-        // Create an inline keyboard with a link to view on CoinGecko
-        const keyboard = new InlineKeyboard()
-          .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${networkId}/contract/${address}`);
-        
-        // Send the message with the inline keyboard
-        await ctx.reply(message, {
+      } else if (tokenInfo || bubblemapsInfo) {
+        // Send text message only if no screenshot but we have some data
+        await ctx.reply(message.trim(), {
           parse_mode: 'Markdown',
           reply_markup: keyboard
         });
+      } else {
+        // This case should be caught by getTokenDataAndSCreenshot, but as a fallback:
+        await ctx.reply("Couldn't fetch any information or visualization for this token.");
       }
       
       // Clean up the cache
@@ -432,8 +420,8 @@ bot.on('message:text', async (ctx) => {
     const statusMessage = await ctx.reply('🔍 Fetching token data and generating visualization...');
     
     try {
-      // Fetch token information for Solana
-      const { tokenInfo, screenshot } = await getTokenDataAndSCreenshot(text, network.id, 'sol');
+      // Fetch token information, Bubblemaps score, and screenshot for Solana
+      const { tokenInfo, bubblemapsInfo, screenshot } = await getTokenDataAndSCreenshot(text, network.id, 'sol');
       
       // Delete status message
       try {
@@ -442,74 +430,67 @@ bot.on('message:text', async (ctx) => {
         console.log('Could not delete status message', error);
       }
       
-      // If we have a screenshot but no token info, show just the visualization
-      if (screenshot && !tokenInfo) {
-        // Create an inline keyboard with a link to view on Bubblemaps
-        const keyboard = new InlineKeyboard()
-          .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
-        
-        // Send the visualization with a simplified message
-        await ctx.replyWithPhoto(new InputFile(screenshot));
-        await ctx.reply(
-          `*Token Visualization*\n\n` +
-          `🔗 *Network:* ${network.name}\n\n` +
-          `ℹ️ Token data not available on CoinGecko, but visualization was generated successfully.`,
-          {
-            parse_mode: 'Markdown',
-            reply_markup: keyboard
-          }
-        );
+      // --- Start Building Response (Solana) ---
+      let message = '';
+      let keyboard = new InlineKeyboard();
+      const networkName = tokenInfo?.networkName || network.name;
+      
+      // Add Token Header (if available)
+      if (tokenInfo) {
+        message += `🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*\n`;
+      } else {
+        message += `🪙 *Token:* \`${text.substring(0, 4)}...${text.substring(text.length - 4)}\`\n`; // Solana address format
       }
-      // If we have both token info and screenshot
-      else if (tokenInfo && screenshot) {
-        // Create a message with the token information
-        const message = `
-🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
-🔗 *Network:* ${tokenInfo.networkName}
+      message += `🔗 *Network:* ${networkName}\n\n`;
+      
+      // Add CoinGecko Data (if available)
+      if (tokenInfo) {
+        message += `*CoinGecko Data:*\n💰 *Price:* $${tokenInfo.price.toFixed(6)}\n📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}\n📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%\n\n`;
+        keyboard = keyboard.url('View on CoinGecko', `https://www.coingecko.com/en/coins/${network.id}/contract/${text}`);
+      } else {
+        message += `*CoinGecko Data:* Not available for this token.\n\n`;
+      }
+      
+      // Add Bubblemaps Supply Analysis (if available)
+      if (bubblemapsInfo) {
+        message += `*Supply Analysis (Bubblemaps):*\n💯 *Decentralization Score:* ${bubblemapsInfo.decentralizationScore !== undefined && bubblemapsInfo.decentralizationScore !== null ? bubblemapsInfo.decentralizationScore.toFixed(2) : 'N/A'}\n📦 *In CEXs:* ${bubblemapsInfo.percentInCexs !== undefined ? bubblemapsInfo.percentInCexs.toFixed(2) + '%' : 'N/A'}\n📜 *In Contracts:* ${bubblemapsInfo.percentInContracts !== undefined ? bubblemapsInfo.percentInContracts.toFixed(2) + '%' : 'N/A'}\n\n`;
+        keyboard = keyboard.url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
+      } else {
+        message += `*Supply Analysis (Bubblemaps):* Not available for this token.\n\n`;
+      }
+      
+      // Add Screenshot note (if missing but other data exists)
+      if (!screenshot && (tokenInfo || bubblemapsInfo)) {
+        message += `\n⚠️ Visualization could not be generated.`;
+      }
+       // Add general data note (if screenshot exists but nothing else)
+      else if (screenshot && !tokenInfo && !bubblemapsInfo) {
+         message = `*Token Visualization*\n🔗 *Network:* ${networkName}\n\nℹ️ Token data not available from CoinGecko or Bubblemaps metadata, but visualization was generated successfully.`
+         keyboard = keyboard.url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
+      }
 
-💰 *Price:* $${tokenInfo.price.toFixed(6)}
-📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
-📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
-
-Data provided by CoinGecko
-        `;
-        
-        // Create an inline keyboard with a link to view on Bubblemaps
-        const keyboard = new InlineKeyboard()
-          .url('View on Bubblemaps', `https://app.bubblemaps.io/sol/token/${text}`);
-        
-        // Send the message with the inline keyboard
-        await ctx.replyWithPhoto(new InputFile(screenshot));
-        await ctx.reply(message, {
+      // Add "Powered by Bubblemaps" if Bubblemaps data or screenshot is present
+      if (bubblemapsInfo || screenshot) {
+          message += `\n\nPowered by [Bubblemaps](https://bubblemaps.io/)`;
+      }
+      
+      // --- Send Response (Solana) ---
+       if (screenshot) {
+        // Send photo first, then the text message with keyboard
+        await ctx.replyWithPhoto(new InputFile(screenshot), {
+          caption: message.trim(), // Use caption for photo
           parse_mode: 'Markdown',
           reply_markup: keyboard
         });
-      }
-      // If we only have token info but no screenshot
-      else if (tokenInfo && !screenshot) {
-        // Create a message with the token information
-        const message = `
-🪙 *${tokenInfo.name} (${tokenInfo.symbol.toUpperCase()})*
-🔗 *Network:* ${tokenInfo.networkName}
-
-💰 *Price:* $${tokenInfo.price.toFixed(6)}
-📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
-📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
-
-⚠️ Visualization could not be generated for this token.
-
-Data provided by CoinGecko
-        `;
-        
-        // Create an inline keyboard with a link to view on CoinGecko
-        const keyboard = new InlineKeyboard()
-          .url('View on CoinGecko', `https://www.coingecko.com/en/coins/${network.id}/contract/${text}`);
-        
-        // Send the message with the inline keyboard
-        await ctx.reply(message, {
+      } else if (tokenInfo || bubblemapsInfo) {
+        // Send text message only if no screenshot but we have some data
+        await ctx.reply(message.trim(), {
           parse_mode: 'Markdown',
           reply_markup: keyboard
         });
+      } else {
+        // Fallback error
+        await ctx.reply("Couldn't fetch any information or visualization for this token.");
       }
     } catch (error) {
       // Delete status message even on error
