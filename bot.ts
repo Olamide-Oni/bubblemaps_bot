@@ -321,7 +321,7 @@ bot.on('callback_query:data', async (ctx) => {
       
       // Add CoinGecko Data (if available)
       if (tokenInfo) {
-        message += `*CoinGecko Data:*\n💰 *Price:* $${tokenInfo.price.toFixed(6)}\n📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}\n📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%\n\n`;
+        message += `*Market Data:*\n💰 *Price:* $${tokenInfo.price.toFixed(6)}\n📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}\n📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%\n\n`;
         keyboard = keyboard.url('View on CoinGecko', `https://www.coingecko.com/en/coins/${networkId}/contract/${address}`);
       } else {
         message += `*CoinGecko Data:* Not available for this token.\n\n`;
