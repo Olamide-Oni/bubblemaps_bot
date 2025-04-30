@@ -103,4 +103,4 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## 📜 License
 
-[Specify your license here, e.g., MIT License]
+MIT License
