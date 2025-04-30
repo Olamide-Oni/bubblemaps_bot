@@ -107,7 +107,12 @@ async function getTokenInfo(contractAddress: string, networkId: string) {
       `${process.env.COINGECKO_API_URL}/coins/${networkId}/contract/${contractAddress}`
     );
 
+    //const getDecentralizationScore = await axios.get(`https://api-legacy.bubblemaps.io/map-metadata?chain=${networkId}&token=${contractAddress}`);
+
+     const getDecentralizationScore = await axios.get("https://api-legacy.bubblemaps.io/map-metadata?chain=eth&token=0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce");
+
     const tokenData = tokenDataResponse.data;
+    const decentralizationScore = getDecentralizationScore.data;
     
     // Extract relevant information
     const tokenInfo = {
@@ -118,7 +123,10 @@ async function getTokenInfo(contractAddress: string, networkId: string) {
       priceChangePercentage24h: tokenData.market_data.price_change_percentage_24h || 0,
       image: tokenData.image.small,
       networkId: networkId,
-      networkName: Object.values(supportedNetworks).find(n => n.id === networkId)?.name || networkId
+      networkName: Object.values(supportedNetworks).find(n => n.id === networkId)?.name || networkId,
+      decentralizationScore: decentralizationScore.decentralization_score,
+      percentInCexs: decentralizationScore.identified_supply.percent_in_cexs,
+      percentInContracts: decentralizationScore.identified_supply.percent_in_contracts,
     };
     
     return tokenInfo;
