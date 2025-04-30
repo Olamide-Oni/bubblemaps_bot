@@ -13,7 +13,7 @@ const supportedNetworks = {
   ftm: { name: 'Fantom', bubblemapsId: 'ftm', id: 'fantom', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
   avax: { name: 'Avalanche', bubblemapsId: 'avax', id: 'avalanche', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
   cro: { name: 'Cronos', bubblemapsId: 'cro', id: 'cronos', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
-  arbitrum: { name: 'Arbitrum', bubblemapsId: 'arb', id: 'arbitrum-one', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
+  arbitrum: { name: 'Arbitrum', bubblemapsId: 'arbi', id: 'arbitrum-one', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
   polygon: { name: 'Polygon', bubblemapsId: 'poly', id: 'polygon-pos', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
   base: { name: 'Base', bubblemapsId: 'base', id: 'base', addressRegex: /^0x[a-fA-F0-9]{40}$/ },
   solana: { name: 'Solana', bubblemapsId: 'sol', id: 'solana', addressRegex: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/ },
@@ -35,30 +35,27 @@ function detectNetwork(address: string) {
   return null; // Unsupported address format
 }
 
-async function getTokenDataAndSCreenshot(address: string, network: string, bubblemapsId: string) {
+async function getTokenDataAndSCreenshot(address: string, networkId: string, bubblemapsId: string) {
   try {
-    // Try to get both token info and screenshot in parallel
-    const [tokenInfo, screenshot] = await Promise.all([
-      getTokenInfo(address, network).catch(error => {
-        console.log('Token info fetch failed:', error);
-        // Return null instead of throwing to continue with screenshot
-        return null;
-      }),
+    // Fetch token info, Bubblemaps metadata, and screenshot in parallel
+    const [tokenInfo, bubblemapsInfo, screenshot] = await Promise.all([
+      getTokenInfo(address, networkId), // Already handles its own errors and returns null
+      getBubblemapsMetadata(address, bubblemapsId), // Already handles its own errors and returns null
       captureBubblemapsScreenshot(address, bubblemapsId).catch(error => {
         console.log('Screenshot capture failed:', error);
-        // Return null instead of throwing
-        return null;
+        return null; // Return null if screenshot fails
       })
     ]);
-    
-    // If both failed, throw an error
-    if (!tokenInfo && !screenshot) {
-      throw new Error('Could not fetch token data or generate visualization');
+
+    // Check if at least one piece of data was successfully fetched
+    if (!tokenInfo && !bubblemapsInfo && !screenshot) {
+      throw new Error('Could not fetch any token data or visualization. The token might not be listed, or there was a network issue.');
     }
-    
-    return { tokenInfo, screenshot };
+
+    return { tokenInfo, bubblemapsInfo, screenshot };
   } catch (error) {
     console.error('Error in getTokenDataAndSCreenshot:', error);
+    // Re-throw the specific error (either the combined one above or others)
     throw error;
   }
 }
@@ -99,22 +96,38 @@ function getNetworkSelectionKeyboard(address: string) {
   return keyboard;
 }
 
-// Function to fetch token information using CoinGecko API
+// NEW function to fetch Bubblemaps metadata
+async function getBubblemapsMetadata(contractAddress: string, bubblemapsChainId: string) {
+  try {
+    const response = await axios.get(`https://api-legacy.bubblemaps.io/map-metadata?chain=${bubblemapsChainId}&token=${contractAddress}`);
+    // Return only the necessary data
+    return {
+      decentralizationScore: response.data?.decentralisation_score,
+      percentInCexs: response.data?.identified_supply?.percent_in_cexs,
+      percentInContracts: response.data?.identified_supply?.percent_in_contracts,
+    };
+  } catch (error) {
+    console.warn(`Warning: Failed to fetch Bubblemaps metadata for ${contractAddress} on ${bubblemapsChainId}:`, error instanceof Error ? error.message : String(error));
+    return null; // Return null if Bubblemaps metadata fails
+  }
+}
+
+// MODIFIED function to fetch ONLY CoinGecko token information
 async function getTokenInfo(contractAddress: string, networkId: string) {
   try {
-    // Get token data from contract address for the specified network
-    const tokenDataResponse = await axios.get(
-      `${process.env.COINGECKO_API_URL}/coins/${networkId}/contract/${contractAddress}`
-    );
+    // Find the network details
+    const networkDetails = Object.values(supportedNetworks).find(n => n.id === networkId);
+    if (!networkDetails) {
+      // Don't throw, just log and return null if network is somehow invalid
+      console.error(`Invalid network ID passed to getTokenInfo: ${networkId}`);
+      return null;
+    }
 
-    //const getDecentralizationScore = await axios.get(`https://api-legacy.bubblemaps.io/map-metadata?chain=${networkId}&token=${contractAddress}`);
-
-     const getDecentralizationScore = await axios.get("https://api-legacy.bubblemaps.io/map-metadata?chain=eth&token=0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce");
+    const tokenDataResponse = await axios.get(`${process.env.COINGECKO_API_URL}/coins/${networkId}/contract/${contractAddress}`);
 
     const tokenData = tokenDataResponse.data;
-    const decentralizationScore = getDecentralizationScore.data;
-    
-    // Extract relevant information
+
+    // Extract relevant CoinGecko information
     const tokenInfo = {
       name: tokenData.name,
       symbol: tokenData.symbol,
@@ -123,16 +136,18 @@ async function getTokenInfo(contractAddress: string, networkId: string) {
       priceChangePercentage24h: tokenData.market_data.price_change_percentage_24h || 0,
       image: tokenData.image.small,
       networkId: networkId,
-      networkName: Object.values(supportedNetworks).find(n => n.id === networkId)?.name || networkId,
-      decentralizationScore: decentralizationScore.decentralization_score,
-      percentInCexs: decentralizationScore.identified_supply.percent_in_cexs,
-      percentInContracts: decentralizationScore.identified_supply.percent_in_contracts,
+      networkName: networkDetails.name,
     };
-    
+
     return tokenInfo;
   } catch (error) {
-    console.error('Error fetching token information:', error instanceof Error ? error.message : String(error));
-    throw new Error('Failed to fetch token information. The contract address might be invalid or the token is not listed on CoinGecko for this network.');
+    // Log CoinGecko API error but return null instead of throwing
+    console.warn(`Warning: Failed to fetch CoinGecko data for ${contractAddress} on ${networkId}:`, error instanceof Error ? error.message : String(error));
+    // Optionally check if the error is a 404 (Not Found) vs other errors
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      console.log(`Token ${contractAddress} not found on CoinGecko for network ${networkId}.`);
+    }
+    return null;
   }
 }
 
@@ -143,5 +158,5 @@ const addressCache: Record<string, string> = {};
 // Start the bot
 
 
-export { supportedNetworks, detectNetwork, getTokenInfo, formatNumber, getNetworkSelectionKeyboard, getTokenDataAndSCreenshot };
+export { supportedNetworks, detectNetwork, getTokenInfo, formatNumber, getNetworkSelectionKeyboard, getTokenDataAndSCreenshot, getBubblemapsMetadata };
 
