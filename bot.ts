@@ -86,7 +86,7 @@ bot.on('callback_query:data', async (ctx) => {
     if (guideType === 'examples') {
       // Create keyboard with copyable addresses
       const addressKeyboard = new InlineKeyboard()
-        .text('Copy UNI', 'copy:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984')
+        /*.text('Copy UNI', 'copy:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984')
         .text('Copy SHIB', 'copy:0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce')
         .row()
         .text('Copy CAKE', 'copy:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82')
@@ -95,32 +95,34 @@ bot.on('callback_query:data', async (ctx) => {
         .text('Copy USDC (SOL)', 'copy:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
         .row()
         .text('Copy BONK (SOL)', 'copy:DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263')
-        .row()
+        .row() */
         .text('« Back to Main Menu', 'guide:back');
       
-      await ctx.editMessageText(
-        '*📝 Token Address Examples:*\n\n' +
+        await ctx.editMessageText(
+          '<b>📝 Token Address Examples:</b>\n\n' +
         
-        '*Simply click a button below to copy an address to clipboard, or tap on an address to use it:*\n\n' +
+          'Simply click a button below to copy an address to clipboard, or tap on an address to use it:\n\n' +
         
-        '*Ethereum (ETH):*\n' +
-        '• UNI: `0x1f9840a85d5af5bf1d1762f925bdaddc4201f984`\n' +
-        '• SHIB: `0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce`\n\n' +
+          '<b>Ethereum (ETH):</b>\n' +
+          '• UNI: <code>0x1f9840a85d5af5bf1d1762f925bdaddc4201f984</code> (tap to copy)\n' +
+          '• SHIB: <code>0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce</code> (tap to copy)\n\n' +
         
-        '*Binance Smart Chain (BSC):*\n' +
-        '• CAKE: `0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82`\n' +
-        '• FLOKI: `0xfb5b838b6cfeedc2873ab27866079ac55363d37e`\n\n' +
+          '<b>Binance Smart Chain (BSC):</b>\n' +
+          '• CAKE: <code>0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82</code> (tap to copy)\n' +
+          '• FLOKI: <code>0xfb5b838b6cfeedc2873ab27866079ac55363d37e</code> (tap to copy)\n\n' +
         
-        '*Solana (SOL):*\n' +
-        '• USDC: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`\n' +
-        '• BONK: `DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263`\n\n' +
+          '<b>Solana (SOL):</b>\n' +
+          '• USDC: <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> (tap to copy)\n' +
+          '• BONK: <code>DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263</code> (tap to copy)\n\n' +
         
-        '*No commands needed - just paste the address!*',
-        {
-          parse_mode: 'Markdown',
-          reply_markup: addressKeyboard
-        }
-      );
+          '<i>No commands needed - just paste the address!</i>',
+          {
+            parse_mode: 'HTML',
+            reply_markup: addressKeyboard
+          }
+        );
+        
+        
     } 
     else if (guideType === 'commands') {
       await ctx.editMessageText(
@@ -331,7 +333,15 @@ bot.on('callback_query:data', async (ctx) => {
 📊 *Market Cap:* $${formatNumber(tokenInfo.marketCap)}
 📈 *24h Change:* ${tokenInfo.priceChangePercentage24h.toFixed(2)}%
 
-Data provided by CoinGecko
+*Supply Analysis*
+
+*Decentralization Score:* ${tokenInfo.decentralizationScore}
+
+*identified supply*
+
+${tokenInfo.percentInCexs} in CEX
+${tokenInfo.percentInContracts} in Contracts
+
         `;
         
         // Create an inline keyboard with a link to view on Bubblemaps
